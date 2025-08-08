@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Webcam to ASCII - Realtime</title>
+    <link rel="stylesheet" href="css/main.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="controls">
+        <h2>Webcam → ASCII</h2>
+        <div class="control-row">
+          <label for="colsRange">Columns</label>
+          <input id="colsRange" type="range" min="60" max="200" value="165" />
+          <span id="colsValue">165</span>
+        </div>
+        <div class="control-row">
+          <label for="charsetSelect">Charset</label>
+          <select id="charsetSelect">
+            <option value="@%#*+=-:. ">@%#*+=-:. (dense)</option>
+            <option value="█▓▒░ .">█▓▒░ (blocks)</option>
+            <option value="$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\^`'. ">$@B%8&WM#*... (long)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label for="detailRange">Detail</label>
+          <input id="detailRange" type="range" min="0.5" max="5.0" value="1.0" step="0.05" />
+          <span id="detailValue">1.00×</span>
+        </div>
+      </section>
+
+      <section class="stage">
+        <pre id="asciiDisplay" class="ascii" aria-label="ASCII output"></pre>
+      </section>
+
+      <!-- Hidden video/canvas used for frame sampling -->
+      <video id="video" autoplay playsinline muted hidden></video>
+      <canvas id="offscreen" hidden></canvas>
+    </main>
+
+    <script src="js/main.js"></script>
+  </body>
+  </html>
+
+

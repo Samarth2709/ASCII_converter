@@ -1,0 +1,99 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0c0c0c;
+  color: #e8e8e8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 16px;
+  padding: 16px;
+  height: 100dvh;
+}
+
+.controls {
+  grid-column: 1 / 2;
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.controls h2 {
+  margin: 0 0 12px 0;
+  font-weight: 600;
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+label {
+  color: #bdbdbd;
+}
+
+input[type="range"], select {
+  width: 100%;
+}
+
+input[type="range"]:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.stage {
+  grid-column: 2 / -1;
+  grid-row: 1 / -1;
+  background: #0a0a0a;
+  border: 1px solid #242424;
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;
+  position: relative;
+}
+
+.ascii {
+  margin: 0;
+  white-space: pre;
+  /* font-size and line-height are now set dynamically by JavaScript */
+}
+
+.resolution-display {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #bdbdbd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .controls { grid-column: 1; }
+  .stage { grid-column: 1; grid-row: 2; }
+}
+
+
