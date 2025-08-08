@@ -95,6 +95,15 @@ export class UIController {
   updateAsciiDisplay(ascii) {
     if (this.elements.asciiDisplay) {
       this.elements.asciiDisplay.textContent = ascii;
+      
+      // Debug: force visibility
+      if (!this._debuggedDisplay) {
+        console.log('[UIController] ASCII display element:', this.elements.asciiDisplay);
+        console.log('[UIController] Display computed style:', window.getComputedStyle(this.elements.asciiDisplay).color);
+        console.log('[UIController] Display visibility:', window.getComputedStyle(this.elements.asciiDisplay).visibility);
+        console.log('[UIController] Display opacity:', window.getComputedStyle(this.elements.asciiDisplay).opacity);
+        this._debuggedDisplay = true;
+      }
     }
   }
 
