@@ -7,7 +7,7 @@ import { AsciiConverter } from './modules/asciiConverter.js';
 import { VideoManager } from './modules/videoManager.js';
 import { ResolutionCalculator } from './modules/resolutionCalculator.js';
 import { UIController } from './modules/uiController.js';
-import { config } from '../../config/app.config.js';
+import { config } from '../config/app.config.js';
 
 class AsciiArtApp {
   constructor() {
@@ -47,7 +47,14 @@ class AsciiArtApp {
       this.initUI();
 
       // Start video capture
-      await this.videoManager.start(config.video.constraints);
+      const mediaConstraints = {
+        video: {
+          facingMode: config.video?.facingMode ?? 'user',
+          ...(config.video?.constraints ?? {}),
+        },
+        audio: false,
+      };
+      await this.videoManager.start(mediaConstraints);
 
       // Start rendering loop
       this.startRenderLoop();
