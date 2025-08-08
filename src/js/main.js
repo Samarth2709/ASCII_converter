@@ -180,8 +180,8 @@ class AsciiArtApp {
         this.detail = Number(e.target.value);
         this.globalUI.updateDetailLabel();
         
-        // If we have an image loaded, re-render it with new detail
-        if (this.lastImage) {
+        // Only re-render image if we're currently in image mode
+        if (this.currentMode === 'image' && this.lastImage) {
           this.convertImageToAscii(this.lastImage);
         }
       },

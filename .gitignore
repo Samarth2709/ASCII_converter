@@ -75,3 +75,6 @@ logs/
 venv/
 env/
 ENV/
+
+# Backup node modules directories
+node_modules_old_*/
