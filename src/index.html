@@ -3,45 +3,89 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Webcam to ASCII - Realtime</title>
+    <title>ASCII Art Studio</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
     <main class="app">
-      <section class="controls">
-        <h2>Webcam → ASCII</h2>
-        <div class="control-row">
-          <label for="colsRange">Columns</label>
-          <input id="colsRange" type="range" min="60" max="200" value="165" />
-          <span id="colsValue">165</span>
-        </div>
-        <div class="control-row">
-          <label for="charsetSelect">Charset</label>
-          <select id="charsetSelect">
-            <option value="@%#*+=-:. ">@%#*+=-:. (dense)</option>
-            <option value="█▓▒░ .">█▓▒░ (blocks)</option>
-            <option value="$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\^`'. ">$@B%8&WM#*... (long)</option>
-          </select>
-        </div>
-        <div class="control-row">
-          <label for="detailRange">Detail</label>
-          <input id="detailRange" type="range" min="0.5" max="5.0" value="1.0" step="0.05" />
-          <span id="detailValue">1.00×</span>
-        </div>
-      </section>
+      <header class="header">
+        <h1 class="brand">ASCII Art Studio</h1>
+        <nav class="tabs" role="tablist" aria-label="ASCII modes">
+          <button id="tabWebcamBtn" class="tab-button is-active" role="tab" aria-selected="true" aria-controls="panelWebcam">Webcam → ASCII</button>
+          <button id="tabImageBtn" class="tab-button" role="tab" aria-selected="false" aria-controls="panelImage">Image → ASCII</button>
+        </nav>
+      </header>
 
-      <section class="stage">
-        <pre id="asciiDisplay" class="ascii" aria-label="ASCII output"></pre>
-      </section>
+      <div class="panels">
+        <!-- Webcam → ASCII Panel -->
+        <section id="panelWebcam" class="tab-panel is-active" role="tabpanel" aria-labelledby="tabWebcamBtn">
+          <aside class="controls">
+            <h2>Webcam → ASCII</h2>
+            <p class="subtitle">Live-capture your webcam feed and render it as ASCII art in real time.</p>
+            <div class="control-row">
+              <label for="charsetSelectWebcam">Charset</label>
+              <select id="charsetSelectWebcam">
+                <option value="@%#*+=-:. ">@%#*+=-:. (dense)</option>
+                <option value="█▓▒░ .">█▓▒░ (blocks)</option>
+                <option value="$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\^`'. ">$@B%8&WM#*... (long)</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label for="detailRangeWebcam">Detail</label>
+              <input id="detailRangeWebcam" type="range" min="0.5" max="5.0" value="1.0" step="0.05" />
+              <span id="detailValueWebcam">1.00×</span>
+            </div>
+          </aside>
 
-      <!-- Hidden video/canvas used for frame sampling -->
+          <section class="stage">
+            <pre id="asciiWebcam" class="ascii" aria-label="ASCII output (webcam)"></pre>
+            <div id="resolutionWebcam" class="resolution-display" aria-live="polite"></div>
+          </section>
+        </section>
+
+        <!-- Image → ASCII Panel -->
+        <section id="panelImage" class="tab-panel" role="tabpanel" aria-labelledby="tabImageBtn" hidden>
+          <aside class="controls">
+            <h2>Image → ASCII</h2>
+            <p class="subtitle">Upload or drop an image to convert it into ASCII art instantly.</p>
+
+            <div class="uploader">
+              <div id="dropZone" class="dropzone" tabindex="0" role="button" aria-label="Drop image here or click to upload">
+                <span>Drop image here or click to upload</span>
+              </div>
+              <input id="imageInput" type="file" accept="image/*" hidden />
+            </div>
+
+            <div class="control-row">
+              <label for="charsetSelectImage">Charset</label>
+              <select id="charsetSelectImage">
+                <option value="@%#*+=-:. ">@%#*+=-:. (dense)</option>
+                <option value="█▓▒░ .">█▓▒░ (blocks)</option>
+                <option value="$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\^`'. ">$@B%8&WM#*... (long)</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label for="detailRangeImage">Detail</label>
+              <input id="detailRangeImage" type="range" min="0.5" max="5.0" value="1.0" step="0.05" />
+              <span id="detailValueImage">1.00×</span>
+            </div>
+          </aside>
+
+          <section class="stage">
+            <pre id="asciiImage" class="ascii" aria-label="ASCII output (image)"></pre>
+            <div id="resolutionImage" class="resolution-display" aria-live="polite"></div>
+          </section>
+        </section>
+      </div>
+
+      <!-- Hidden elements used for frame sampling and processing -->
       <video id="video" autoplay playsinline muted hidden></video>
       <canvas id="offscreen" hidden></canvas>
     </main>
 
     <script type="module" src="/js/main.js"></script>
   </body>
-  </html>
+</html>
 
 
