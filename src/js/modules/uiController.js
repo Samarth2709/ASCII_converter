@@ -118,6 +118,15 @@ export class UIController {
   }
 
   /**
+   * Clear ASCII display
+   */
+  clearDisplay() {
+    if (this.elements.asciiDisplay) {
+      this.elements.asciiDisplay.textContent = '';
+    }
+  }
+
+  /**
    * Clean up event listeners
    */
   destroy() {

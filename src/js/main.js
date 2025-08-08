@@ -11,15 +11,16 @@ import { config } from '../config/app.config.js';
 
 class AsciiArtApp {
   constructor() {
-    // Tabs
+    // Tabs (kept for potential future use)
     this.tabButtons = {
       webcam: document.getElementById('tabWebcamBtn'),
       image: document.getElementById('tabImageBtn'),
     };
-    this.panels = {
-      webcam: document.getElementById('panelWebcam'),
-      image: document.getElementById('panelImage'),
-    };
+    
+    // Main UI elements
+    this.mainContent = document.querySelector('.main-content');
+    this.sidebar = document.querySelector('.sidebar');
+    this.asciiStage = document.querySelector('.ascii-stage');
 
     // Shared hidden drawing elements
     this.videoElement = document.getElementById('video');
@@ -33,22 +34,18 @@ class AsciiArtApp {
     this.canvas.style.left = '-99999px';
     this.canvas.style.top = '0';
 
-    // Webcam tab elements
-    this.webcamEls = {
-      asciiDisplay: document.getElementById('asciiWebcam'),
-      charsetSelect: document.getElementById('charsetSelectWebcam'),
-      detailRange: document.getElementById('detailRangeWebcam'),
-      detailValue: document.getElementById('detailValueWebcam'),
-      resolutionDisplay: document.getElementById('resolutionWebcam'),
+    // Global control elements
+    this.globalEls = {
+      charsetSelect: document.getElementById('charsetSelect'),
+      detailRange: document.getElementById('detailRange'),
+      detailValue: document.getElementById('detailValue'),
     };
 
-    // Image tab elements
-    this.imageEls = {
-      asciiDisplay: document.getElementById('asciiImage'),
-      charsetSelect: document.getElementById('charsetSelectImage'),
-      detailRange: document.getElementById('detailRangeImage'),
-      detailValue: document.getElementById('detailValueImage'),
-      resolutionDisplay: document.getElementById('resolutionImage'),
+    // Unified display elements
+    this.displayEls = {
+      asciiDisplay: document.getElementById('asciiDisplay'),
+      resolutionDisplay: document.getElementById('resolutionDisplay'),
+      modeIndicator: document.getElementById('modeIndicator'),
       dropZone: document.getElementById('dropZone'),
       imageInput: document.getElementById('imageInput'),
     };
@@ -60,137 +57,147 @@ class AsciiArtApp {
     this.resolutionCalculator = new ResolutionCalculator();
 
     // State
-    this.activeTab = 'webcam';
-    this.webcamDetail = config.ascii.defaultDetail;
-    this.imageDetail = config.ascii.defaultDetail;
+    this.detail = config.ascii.defaultDetail; // Single detail setting for both modes
     this.animationId = null;
     this.lastImage = null;
     this.fpsLast = performance.now();
     this.fps = 0;
+    this.webcamActive = true; // Track if webcam should be running
+    this.currentMode = 'webcam'; // Track current display mode
 
-    // UI Controllers per tab
-    this.webcamUI = new UIController({
-      asciiDisplay: this.webcamEls.asciiDisplay,
-      charsetSelect: this.webcamEls.charsetSelect,
-      detailRange: this.webcamEls.detailRange,
-      detailValue: this.webcamEls.detailValue,
-      resolutionDisplay: this.webcamEls.resolutionDisplay,
+    // Global UI Controller
+    this.globalUI = new UIController({
+      charsetSelect: this.globalEls.charsetSelect,
+      detailRange: this.globalEls.detailRange,
+      detailValue: this.globalEls.detailValue,
     });
 
-    this.imageUI = new UIController({
-      asciiDisplay: this.imageEls.asciiDisplay,
-      charsetSelect: this.imageEls.charsetSelect,
-      detailRange: this.imageEls.detailRange,
-      detailValue: this.imageEls.detailValue,
-      resolutionDisplay: this.imageEls.resolutionDisplay,
+    // Unified display UI Controller
+    this.displayUI = new UIController({
+      asciiDisplay: this.displayEls.asciiDisplay,
+      resolutionDisplay: this.displayEls.resolutionDisplay,
     });
   }
 
   async init() {
     try {
-      this.initTabs();
-      this.initWebcamUI();
-      this.initImageUI();
+      this.initTabButtons(); // Simple button functionality
+      this.initGlobalUI();
+      this.initDisplayUI();
+      this.initImageUpload();
       await this.startWebcam();
       this.startRenderLoop();
       this.installDebugOverlay();
       
       // Debug: test ASCII display with known content
       setTimeout(() => {
-        const currentContent = this.webcamEls.asciiDisplay.textContent;
+        const currentContent = this.displayEls.asciiDisplay.textContent;
         console.log('[Debug] ASCII display content length:', currentContent.length);
-        console.log('[Debug] ASCII display element:', this.webcamEls.asciiDisplay);
-        console.log('[Debug] ASCII display parent:', this.webcamEls.asciiDisplay.parentElement);
+        console.log('[Debug] ASCII display element:', this.displayEls.asciiDisplay);
+        console.log('[Debug] ASCII display parent:', this.displayEls.asciiDisplay.parentElement);
         
         // Force a bright test pattern
-        this.webcamEls.asciiDisplay.style.color = '#00ff00'; // Bright green
-        this.webcamEls.asciiDisplay.style.fontSize = '16px';
-        this.webcamEls.asciiDisplay.style.fontFamily = 'monospace';
-        this.webcamEls.asciiDisplay.textContent = 'TEST: If you see this GREEN text, display works!\n' + currentContent.substring(0, 200);
+        this.displayEls.asciiDisplay.style.color = '#00ff00'; // Bright green
+        this.displayEls.asciiDisplay.style.fontSize = '16px';
+        this.displayEls.asciiDisplay.style.fontFamily = 'monospace';
+        this.displayEls.asciiDisplay.textContent = 'TEST: If you see this GREEN text, display works!\n' + currentContent.substring(0, 200);
         
         setTimeout(() => {
           console.log('[Debug] Removing test styles');
-          this.webcamEls.asciiDisplay.style.color = '';
-          this.webcamEls.asciiDisplay.style.fontSize = '';
+          this.displayEls.asciiDisplay.style.color = '';
+          this.displayEls.asciiDisplay.style.fontSize = '';
         }, 3000);
       }, 1000);
     } catch (error) {
       console.error('Initialization error:', error);
-      this.webcamUI.showError(`Error: ${error.message}`);
+      this.displayUI.showError(`Error: ${error.message}`);
     }
   }
 
-  initTabs() {
-    const activate = async (tab) => {
-      if (this.activeTab === tab) return;
-      // Update buttons
-      Object.values(this.tabButtons).forEach(btn => btn.classList.remove('is-active'));
-      this.tabButtons[tab].classList.add('is-active');
-      this.tabButtons.webcam.setAttribute('aria-selected', String(tab === 'webcam'));
-      this.tabButtons.image.setAttribute('aria-selected', String(tab === 'image'));
-
-      // Update panels
-      Object.values(this.panels).forEach(panel => {
-        panel.classList.remove('is-active');
-        panel.hidden = true;
-      });
-      this.panels[tab].classList.add('is-active');
-      this.panels[tab].hidden = false;
-
-      // Handle lifecycle
-      this.activeTab = tab;
-      if (tab === 'webcam') {
-        try {
-          await this.startWebcam();
-        } catch (_) {
-          // Error is surfaced via UI in startWebcam
-        }
+  initTabButtons() {
+    // Webcam button switches to webcam mode
+    const switchToWebcam = async () => {
+      if (this.currentMode === 'webcam') return;
+      
+      this.currentMode = 'webcam';
+      this.updateModeIndicator();
+      this.updateButtonStates();
+      
+      try {
+        await this.startWebcam();
         this.startRenderLoop();
-      } else {
-        // stop webcam render loop; keep stream to quickly resume or stop fully
-        this.stopRenderLoop();
-        this.videoManager.stop();
+      } catch (_) {
+        // Error is surfaced via UI in startWebcam
       }
     };
 
-    this.tabButtons.webcam.addEventListener('click', () => activate('webcam'));
-    this.tabButtons.image.addEventListener('click', () => activate('image'));
+    // Image button switches to image mode and optionally opens file picker
+    const switchToImage = () => {
+      if (this.currentMode === 'image') {
+        // If already in image mode, open file picker
+        this.displayEls.imageInput.click();
+        return;
+      }
+      
+      this.currentMode = 'image';
+      this.updateModeIndicator();
+      this.updateButtonStates();
+      
+      // Stop webcam when switching to image mode
+      this.stopRenderLoop();
+      this.videoManager.stop();
+      
+      // If we have an image, display it, otherwise prompt for upload
+      if (this.lastImage) {
+        this.convertImageToAscii(this.lastImage);
+      } else {
+        this.displayEls.imageInput.click();
+      }
+    };
 
-    // When switching to image tab and an image is already loaded, re-render to fit layout
+    this.tabButtons.webcam.addEventListener('click', switchToWebcam);
+    this.tabButtons.image.addEventListener('click', switchToImage);
+
+    // When display area resizes and an image is loaded, re-render to fit layout
     const resizeObserver = new ResizeObserver(() => {
-      if (this.activeTab === 'image' && this.lastImage) {
+      if (this.currentMode === 'image' && this.lastImage) {
         this.convertImageToAscii(this.lastImage);
       }
     });
-    resizeObserver.observe(this.panels.image);
+    resizeObserver.observe(this.asciiStage);
   }
 
-  initWebcamUI() {
-    this.webcamUI.init({
-      onCharsetChange: (e) => this.webcamConverter.setCharset(e.target.value),
-      onDetailChange: (e) => {
-        this.webcamDetail = Number(e.target.value);
-        this.webcamUI.updateDetailLabel();
+  initGlobalUI() {
+    this.globalUI.init({
+      onCharsetChange: (e) => {
+        // Update both converters with the same charset
+        const charset = e.target.value;
+        this.webcamConverter.setCharset(charset);
+        this.imageConverter.setCharset(charset);
       },
-    });
-  }
-
-  initImageUI() {
-    this.imageUI.init({
-      onCharsetChange: (e) => this.imageConverter.setCharset(e.target.value),
       onDetailChange: (e) => {
-        this.imageDetail = Number(e.target.value);
-        this.imageUI.updateDetailLabel();
+        // Update single detail value for both modes
+        this.detail = Number(e.target.value);
+        this.globalUI.updateDetailLabel();
+        
+        // If we have an image loaded, re-render it with new detail
         if (this.lastImage) {
           this.convertImageToAscii(this.lastImage);
         }
       },
     });
+  }
+
+  initDisplayUI() {
+    this.displayUI.init({});
+  }
+
+  initImageUpload() {
 
     // Image uploader interactions
-    const openPicker = () => this.imageEls.imageInput.click();
-    this.imageEls.dropZone.addEventListener('click', openPicker);
-    this.imageEls.dropZone.addEventListener('keydown', (e) => {
+    const openPicker = () => this.displayEls.imageInput.click();
+    this.displayEls.dropZone.addEventListener('click', openPicker);
+    this.displayEls.dropZone.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openPicker();
@@ -203,26 +210,49 @@ class AsciiArtApp {
       const img = new Image();
       img.onload = () => {
         this.lastImage = img;
+        // Switch to image mode when image is loaded
+        this.currentMode = 'image';
+        this.updateModeIndicator();
+        this.updateButtonStates();
+        this.stopRenderLoop();
+        this.videoManager.stop();
         this.convertImageToAscii(img);
       };
-      img.onerror = () => this.imageUI.showError('Failed to load image.');
+      img.onerror = () => this.displayUI.showError('Failed to load image.');
       img.src = URL.createObjectURL(file);
     };
 
-    this.imageEls.imageInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    this.displayEls.imageInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-    this.imageEls.dropZone.addEventListener('dragover', (e) => {
+    this.displayEls.dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      this.imageEls.dropZone.classList.add('dragging');
+      this.displayEls.dropZone.classList.add('dragging');
     });
-    this.imageEls.dropZone.addEventListener('dragleave', () => {
-      this.imageEls.dropZone.classList.remove('dragging');
+    this.displayEls.dropZone.addEventListener('dragleave', () => {
+      this.displayEls.dropZone.classList.remove('dragging');
     });
-    this.imageEls.dropZone.addEventListener('drop', (e) => {
+    this.displayEls.dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      this.imageEls.dropZone.classList.remove('dragging');
+      this.displayEls.dropZone.classList.remove('dragging');
       handleFiles(e.dataTransfer.files);
     });
+  }
+
+  updateModeIndicator() {
+    if (this.currentMode === 'webcam') {
+      this.displayEls.modeIndicator.textContent = 'Webcam Mode';
+      this.displayEls.modeIndicator.classList.remove('image-mode');
+    } else {
+      this.displayEls.modeIndicator.textContent = 'Image Mode';
+      this.displayEls.modeIndicator.classList.add('image-mode');
+    }
+  }
+
+  updateButtonStates() {
+    this.tabButtons.webcam.classList.toggle('is-active', this.currentMode === 'webcam');
+    this.tabButtons.image.classList.toggle('is-active', this.currentMode === 'image');
+    this.tabButtons.webcam.setAttribute('aria-selected', String(this.currentMode === 'webcam'));
+    this.tabButtons.image.setAttribute('aria-selected', String(this.currentMode === 'image'));
   }
 
   async startWebcam() {
@@ -236,14 +266,14 @@ class AsciiArtApp {
       };
       await this.videoManager.start(mediaConstraints);
     } catch (error) {
-      this.webcamUI.showError(`Webcam error: ${error.message}`);
+      this.displayUI.showError(`Webcam error: ${error.message}`);
     }
   }
 
   startRenderLoop() {
     if (this.animationId) return; // already running
     const render = () => {
-      if (this.activeTab !== 'webcam') {
+      if (!this.webcamActive) {
         this.animationId = null;
         return;
       }
@@ -255,14 +285,14 @@ class AsciiArtApp {
       }
 
       // Calculate optimal resolution
-      const containerRect = this.webcamEls.asciiDisplay.parentElement.getBoundingClientRect();
+      const containerRect = this.displayEls.asciiDisplay.parentElement.getBoundingClientRect();
       const videoDimensions = this.videoManager.getDimensions();
       const videoAspectRatio = videoDimensions.width / videoDimensions.height;
 
       const { cols, rows, fontSize } = this.resolutionCalculator.calculate(
         containerRect,
         videoAspectRatio,
-        this.webcamDetail
+        this.detail
       );
 
       // Update canvas size
@@ -270,15 +300,14 @@ class AsciiArtApp {
       this.canvas.height = rows;
 
       // Update ASCII display style
-      const displayFontSize = Math.max(fontSize, 8); // Ensure minimum font size
-      this.webcamUI.updateAsciiStyle({
-        fontSize: `${displayFontSize}px`,
-        lineHeight: `${displayFontSize}px`,
+      this.displayUI.updateAsciiStyle({
+        fontSize: `${fontSize}px`,
+        lineHeight: `${fontSize}px`,
       });
       
       // Debug font size
       if (Math.random() < 0.02) {
-        console.log('[Render] Font size:', displayFontSize, 'px');
+        console.log('[Render] Font size:', fontSize, 'px');
       }
 
       // Draw scaled video frame to canvas
@@ -303,8 +332,8 @@ class AsciiArtApp {
       }
 
       // Update displays
-      this.webcamUI.updateAsciiDisplay(ascii);
-      this.webcamUI.updateResolution(cols, rows);
+      this.displayUI.updateAsciiDisplay(ascii);
+      this.displayUI.updateResolution(cols, rows);
 
       // Debug overlay
       this.updateDebugOverlay({
@@ -341,13 +370,13 @@ class AsciiArtApp {
 
   convertImageToAscii(image) {
     // Determine container and aspect ratio based on image natural size
-    const containerRect = this.imageEls.asciiDisplay.parentElement.getBoundingClientRect();
+    const containerRect = this.displayEls.asciiDisplay.parentElement.getBoundingClientRect();
     const imageAspectRatio = image.naturalWidth / image.naturalHeight;
 
     const { cols, rows, fontSize } = this.resolutionCalculator.calculate(
       containerRect,
       imageAspectRatio,
-      this.imageDetail
+      this.detail
     );
 
     // Prepare canvas
@@ -355,7 +384,7 @@ class AsciiArtApp {
     this.canvas.height = rows;
 
     // Style output
-    this.imageUI.updateAsciiStyle({
+    this.displayUI.updateAsciiStyle({
       fontSize: `${fontSize}px`,
       lineHeight: `${fontSize}px`,
     });
@@ -369,14 +398,14 @@ class AsciiArtApp {
     const ascii = this.imageConverter.convertToAscii(imageData, cols, rows);
 
     // Animate in
-    this.imageEls.asciiDisplay.classList.add('enter');
+    this.displayEls.asciiDisplay.classList.add('enter');
     requestAnimationFrame(() => {
-      this.imageEls.asciiDisplay.classList.add('enter-active');
-      this.imageUI.updateAsciiDisplay(ascii);
-      this.imageUI.updateResolution(cols, rows);
+      this.displayEls.asciiDisplay.classList.add('enter-active');
+      this.displayUI.updateAsciiDisplay(ascii);
+      this.displayUI.updateResolution(cols, rows);
       setTimeout(() => {
-        this.imageEls.asciiDisplay.classList.remove('enter');
-        this.imageEls.asciiDisplay.classList.remove('enter-active');
+        this.displayEls.asciiDisplay.classList.remove('enter');
+        this.displayEls.asciiDisplay.classList.remove('enter-active');
       }, 260);
     });
   }
@@ -384,8 +413,8 @@ class AsciiArtApp {
   stop() {
     this.stopRenderLoop();
     this.videoManager.stop();
-    this.webcamUI.destroy();
-    this.imageUI.destroy();
+    this.globalUI.destroy();
+    this.displayUI.destroy();
   }
 
   installDebugOverlay() {
