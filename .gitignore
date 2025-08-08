@@ -69,3 +69,9 @@ logs/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Python virtual environment
+.venv/
+venv/
+env/
+ENV/
