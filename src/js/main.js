@@ -25,6 +25,13 @@ class AsciiArtApp {
     this.videoElement = document.getElementById('video');
     this.canvas = document.getElementById('offscreen');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    // Ensure hidden elements are measurable and not display:none
+    this.videoElement.style.position = 'absolute';
+    this.videoElement.style.left = '-99999px';
+    this.videoElement.style.top = '0';
+    this.canvas.style.position = 'absolute';
+    this.canvas.style.left = '-99999px';
+    this.canvas.style.top = '0';
 
     // Webcam tab elements
     this.webcamEls = {
@@ -58,6 +65,8 @@ class AsciiArtApp {
     this.imageDetail = config.ascii.defaultDetail;
     this.animationId = null;
     this.lastImage = null;
+    this.fpsLast = performance.now();
+    this.fps = 0;
 
     // UI Controllers per tab
     this.webcamUI = new UIController({
@@ -84,6 +93,27 @@ class AsciiArtApp {
       this.initImageUI();
       await this.startWebcam();
       this.startRenderLoop();
+      this.installDebugOverlay();
+      
+      // Debug: test ASCII display with known content
+      setTimeout(() => {
+        const currentContent = this.webcamEls.asciiDisplay.textContent;
+        console.log('[Debug] ASCII display content length:', currentContent.length);
+        console.log('[Debug] ASCII display element:', this.webcamEls.asciiDisplay);
+        console.log('[Debug] ASCII display parent:', this.webcamEls.asciiDisplay.parentElement);
+        
+        // Force a bright test pattern
+        this.webcamEls.asciiDisplay.style.color = '#00ff00'; // Bright green
+        this.webcamEls.asciiDisplay.style.fontSize = '16px';
+        this.webcamEls.asciiDisplay.style.fontFamily = 'monospace';
+        this.webcamEls.asciiDisplay.textContent = 'TEST: If you see this GREEN text, display works!\n' + currentContent.substring(0, 200);
+        
+        setTimeout(() => {
+          console.log('[Debug] Removing test styles');
+          this.webcamEls.asciiDisplay.style.color = '';
+          this.webcamEls.asciiDisplay.style.fontSize = '';
+        }, 3000);
+      }, 1000);
     } catch (error) {
       console.error('Initialization error:', error);
       this.webcamUI.showError(`Error: ${error.message}`);
@@ -91,7 +121,7 @@ class AsciiArtApp {
   }
 
   initTabs() {
-    const activate = (tab) => {
+    const activate = async (tab) => {
       if (this.activeTab === tab) return;
       // Update buttons
       Object.values(this.tabButtons).forEach(btn => btn.classList.remove('is-active'));
@@ -110,7 +140,11 @@ class AsciiArtApp {
       // Handle lifecycle
       this.activeTab = tab;
       if (tab === 'webcam') {
-        this.startWebcam();
+        try {
+          await this.startWebcam();
+        } catch (_) {
+          // Error is surfaced via UI in startWebcam
+        }
         this.startRenderLoop();
       } else {
         // stop webcam render loop; keep stream to quickly resume or stop fully
@@ -209,8 +243,14 @@ class AsciiArtApp {
   startRenderLoop() {
     if (this.animationId) return; // already running
     const render = () => {
-      if (this.activeTab !== 'webcam' || !this.videoManager.isVideoRunning()) {
+      if (this.activeTab !== 'webcam') {
         this.animationId = null;
+        return;
+      }
+
+      // If video not yet running (permission dialog, startup), keep polling
+      if (!this.videoManager.isVideoRunning()) {
+        this.animationId = requestAnimationFrame(render);
         return;
       }
 
@@ -230,21 +270,60 @@ class AsciiArtApp {
       this.canvas.height = rows;
 
       // Update ASCII display style
+      const displayFontSize = Math.max(fontSize, 8); // Ensure minimum font size
       this.webcamUI.updateAsciiStyle({
-        fontSize: `${fontSize}px`,
-        lineHeight: `${fontSize}px`,
+        fontSize: `${displayFontSize}px`,
+        lineHeight: `${displayFontSize}px`,
       });
+      
+      // Debug font size
+      if (Math.random() < 0.02) {
+        console.log('[Render] Font size:', displayFontSize, 'px');
+      }
 
       // Draw scaled video frame to canvas
       this.ctx.drawImage(this.videoElement, 0, 0, cols, rows);
 
       // Get image data and convert to ASCII
       const imageData = this.ctx.getImageData(0, 0, cols, rows);
+      
+      // Debug: check if we're getting valid image data
+      const pixelSample = imageData.data.slice(0, 12); // First 3 pixels RGBA
+      const hasData = pixelSample.some(v => v > 0);
+      if (!hasData) {
+        console.warn('[Render] Image data appears empty. First pixels:', pixelSample);
+      }
+      
       const ascii = this.webcamConverter.convertToAscii(imageData, cols, rows);
+      
+      // Debug: log a sample of the ASCII output
+      if (Math.random() < 0.05) { // Log 5% of frames
+        const preview = ascii.substring(0, 100).replace(/\n/g, '\\n');
+        console.log('[Render] ASCII preview:', preview, '... Length:', ascii.length);
+      }
 
       // Update displays
       this.webcamUI.updateAsciiDisplay(ascii);
       this.webcamUI.updateResolution(cols, rows);
+
+      // Debug overlay
+      this.updateDebugOverlay({
+        cols,
+        rows,
+        fontSize,
+        video: videoDimensions,
+      });
+
+      // FPS calculation
+      const now = performance.now();
+      const dt = now - this.fpsLast;
+      if (dt >= 100) { // Update FPS more frequently
+        // Count frames per second based on time between updates
+        this.fps = 1000 / (dt / (this.frameCount || 1));
+        this.fpsLast = now;
+        this.frameCount = 0;
+      }
+      this.frameCount = (this.frameCount || 0) + 1;
 
       // Continue loop
       this.animationId = requestAnimationFrame(render);
@@ -307,6 +386,31 @@ class AsciiArtApp {
     this.videoManager.stop();
     this.webcamUI.destroy();
     this.imageUI.destroy();
+  }
+
+  installDebugOverlay() {
+    if (document.getElementById('debugOverlay')) return;
+    const el = document.createElement('div');
+    el.id = 'debugOverlay';
+    el.style.position = 'fixed';
+    el.style.left = '12px';
+    el.style.bottom = '12px';
+    el.style.zIndex = '9999';
+    el.style.background = 'rgba(0,0,0,0.6)';
+    el.style.color = '#bdbdbd';
+    el.style.padding = '6px 8px';
+    el.style.borderRadius = '6px';
+    el.style.fontSize = '12px';
+    el.style.pointerEvents = 'none';
+    el.style.whiteSpace = 'pre';
+    el.textContent = 'Starting…';
+    document.body.appendChild(el);
+  }
+
+  updateDebugOverlay({ cols, rows, fontSize, video }) {
+    const el = document.getElementById('debugOverlay');
+    if (!el) return;
+    el.textContent = `Video: ${video.width}x${video.height}\nASCII: ${cols}x${rows} @ ${fontSize.toFixed(1)}px\nFPS (approx): ${this.fps.toFixed(1)}`;
   }
 }
 
