@@ -312,6 +312,9 @@ def _convert_video(
                     f.write(f"=== FRAME {i+1} ===\n")
                     f.write(frame)
                     f.write("\n")
+        elif output_path.endswith('.mp4') or output_path.endswith('.avi'):
+            # Convert ASCII frames to video
+            _create_ascii_video(ascii_frames, output_path, cols, rows, frame_rate)
         else:
             # Save as individual frame files
             base_name = os.path.splitext(output_path)[0]
@@ -323,6 +326,79 @@ def _convert_video(
         print(f"ASCII video saved to: {output_path}")
     
     return ascii_frames
+
+
+def _create_ascii_video(
+    ascii_frames: List[str],
+    output_path: str,
+    cols: int,
+    rows: int,
+    frame_rate: float
+) -> None:
+    """
+    Create a video file from ASCII frames.
+    
+    Args:
+        ascii_frames: List of ASCII text frames
+        output_path: Path to save the video
+        cols: Number of columns in ASCII art
+        rows: Number of rows in ASCII art
+        frame_rate: Frame rate for the output video
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    import numpy as np
+    
+    # Try to use a monospace font
+    try:
+        font_size = 10
+        font = ImageFont.truetype("/System/Library/Fonts/Monaco.ttf", font_size)
+    except:
+        try:
+            font = ImageFont.truetype("Courier New", font_size)
+        except:
+            font = ImageFont.load_default()
+    
+    # Calculate video dimensions based on font size
+    char_width = font.getbbox('M')[2] - font.getbbox('M')[0]
+    char_height = font.getbbox('M')[3] - font.getbbox('M')[1]
+    
+    video_width = cols * char_width + 20  # Add padding
+    video_height = rows * char_height + 20  # Add padding
+    
+    # Make dimensions even (required by many codecs)
+    video_width = video_width + (video_width % 2)
+    video_height = video_height + (video_height % 2)
+    
+    # Create video writer
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(output_path, fourcc, frame_rate, (video_width, video_height))
+    
+    print(f"Creating ASCII video: {video_width}x{video_height} at {frame_rate} FPS")
+    
+    for i, ascii_frame in enumerate(ascii_frames):
+        # Create image for this frame
+        img = Image.new('RGB', (video_width, video_height), color='black')
+        draw = ImageDraw.Draw(img)
+        
+        # Draw ASCII text
+        lines = ascii_frame.strip().split('\n')
+        y = 10
+        for line in lines:
+            draw.text((10, y), line, fill='white', font=font)
+            y += char_height
+        
+        # Convert PIL image to OpenCV format
+        frame = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+        
+        # Write frame to video
+        out.write(frame)
+        
+        if (i + 1) % 30 == 0:
+            print(f"Rendered {i + 1}/{len(ascii_frames)} frames...")
+    
+    # Release video writer
+    out.release()
+    print(f"ASCII video created: {output_path}")
 
 
 def _create_ascii_image(ascii_text: str, output_path: Optional[str] = None) -> str:

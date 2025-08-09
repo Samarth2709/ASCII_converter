@@ -183,10 +183,11 @@ async def convert_video(
     detail_level: float = Form(1.0),
     charset_preset: str = Form("standard"),
     frame_rate: float = Form(10.0),
-    sensitivity: float = Form(1.0)
+    sensitivity: float = Form(1.0),
+    output_format: str = Form("video")
 ):
     """
-    Convert an uploaded video to ASCII art frames.
+    Convert an uploaded video to ASCII art video.
     
     Parameters:
     - file: Video file (mp4, avi, mov, etc.)
@@ -194,6 +195,7 @@ async def convert_video(
     - charset_preset: Character set preset
     - frame_rate: Target frame rate for processing
     - sensitivity: Sensitivity factor for luminance adjustment
+    - output_format: Output format (video or text)
     """
     
     # Validate parameters
@@ -209,6 +211,9 @@ async def convert_video(
     if not (1.0 <= frame_rate <= 60.0):
         raise HTTPException(status_code=400, detail="Frame rate must be between 1.0 and 60.0")
     
+    if output_format not in ["video", "text"]:
+        raise HTTPException(status_code=400, detail="Output format must be 'video' or 'text'")
+    
     # Check file type
     if not file.content_type or not file.content_type.startswith('video/'):
         raise HTTPException(status_code=400, detail="File must be a video")
@@ -221,7 +226,10 @@ async def convert_video(
         temp_path = temp_file.name
         
         # Generate unique filename for output
-        output_filename = f"ascii_video_{Path(file.filename).stem}_{hash(temp_path) % 10000}.txt"
+        if output_format == "video":
+            output_filename = f"ascii_video_{Path(file.filename).stem}_{hash(temp_path) % 10000}.mp4"
+        else:
+            output_filename = f"ascii_video_{Path(file.filename).stem}_{hash(temp_path) % 10000}.txt"
         output_path = OUTPUT_DIR / output_filename
         
         # Convert video to ASCII
@@ -229,7 +237,7 @@ async def convert_video(
             input_path=temp_path,
             detail_level=detail_level,
             charset_preset=charset_preset,
-            output_format="text",
+            output_format="text",  # Always get text frames first
             output_path=str(output_path),
             sensitivity=sensitivity,
             frame_rate=frame_rate
@@ -240,7 +248,7 @@ async def convert_video(
         
         return ConversionResponse(
             success=True,
-            message="Video converted to ASCII successfully",
+            message=f"Video converted to ASCII {output_format} successfully",
             image_url=f"/outputs/{output_filename}",
             frame_count=len(frames)
         )
@@ -358,6 +366,10 @@ async def get_output_file(filename: str):
         return FileResponse(file_path, media_type="image/png")
     elif filename.endswith('.txt'):
         return FileResponse(file_path, media_type="text/plain")
+    elif filename.endswith('.mp4'):
+        return FileResponse(file_path, media_type="video/mp4")
+    elif filename.endswith('.avi'):
+        return FileResponse(file_path, media_type="video/x-msvideo")
     else:
         return FileResponse(file_path)
 
