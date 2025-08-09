@@ -5,12 +5,7 @@ export const config = {
     defaultColumns: 165,
     minColumns: 60,
     maxColumns: 200,
-    defaultCharset: '@%#*+=-:. ',
-    charsets: {
-      dense: '@%#*+=-:. ',
-      blocks: '█▓▒░ .',
-      extended: '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,\\^`\'. ',
-    },
+    defaultCharsetPreset: 'standard', // Use preset name instead
     defaultDetail: 1.0,
     minDetail: 0.5,
     maxDetail: 5.0,

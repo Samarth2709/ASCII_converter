@@ -51,8 +51,8 @@ class AsciiArtApp {
     };
 
     // Modules (separate converters to keep independent settings)
-    this.webcamConverter = new AsciiConverter(config.ascii.defaultCharset);
-    this.imageConverter = new AsciiConverter(config.ascii.defaultCharset);
+    this.webcamConverter = new AsciiConverter('standard'); // Use preset name
+    this.imageConverter = new AsciiConverter('standard');
     this.videoManager = new VideoManager(this.videoElement);
     this.resolutionCalculator = new ResolutionCalculator();
 
@@ -79,8 +79,47 @@ class AsciiArtApp {
     });
   }
 
+  populateCharsetOptions() {
+    const presets = AsciiConverter.getAvailablePresets();
+    const select = this.globalEls.charsetSelect;
+    
+    // Clear existing options
+    select.innerHTML = '';
+    
+    // Add options for each preset
+    Object.entries(presets).forEach(([presetName, charset]) => {
+      const option = document.createElement('option');
+      option.value = presetName;
+      
+      // Create a descriptive label
+      const charsetPreview = charset.length > 15 
+        ? charset.substring(0, 12) + '...' 
+        : charset;
+      
+      const presetLabels = {
+        'standard': 'Standard',
+        'block': 'Block',
+        'simple': 'Simple',
+        'detailed': 'Detailed',
+        'minimal': 'Minimal',
+        'dots': 'Dots'
+      };
+      
+      const label = presetLabels[presetName] || presetName;
+      option.textContent = `${label} (${charsetPreview})`;
+      
+      // Set default selection
+      if (presetName === 'standard') {
+        option.selected = true;
+      }
+      
+      select.appendChild(option);
+    });
+  }
+
   async init() {
     try {
+      this.populateCharsetOptions(); // Populate charset dropdown
       this.initTabButtons(); // Simple button functionality
       this.initGlobalUI();
       this.initDisplayUI();
@@ -170,10 +209,10 @@ class AsciiArtApp {
   initGlobalUI() {
     this.globalUI.init({
       onCharsetChange: (e) => {
-        // Update both converters with the same charset
-        const charset = e.target.value;
-        this.webcamConverter.setCharset(charset);
-        this.imageConverter.setCharset(charset);
+        // Update both converters with the same charset preset
+        const presetName = e.target.value;
+        this.webcamConverter.setCharsetPreset(presetName);
+        this.imageConverter.setCharsetPreset(presetName);
       },
       onDetailChange: (e) => {
         // Update single detail value for both modes

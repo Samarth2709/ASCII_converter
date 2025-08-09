@@ -4,17 +4,58 @@
  */
 
 export class AsciiConverter {
-  constructor(charset = '@%#*+=-:. ') {
-    this.charset = charset;
+  // Predefined character sets matching the Python implementation
+  static CHARSET_PRESETS = {
+    'standard': '@%#*+=-:. ',
+    'block': '█▉▊▋▌▍▎▏ ',
+    'simple': '##++--.. ',
+    'detailed': '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ',
+    'minimal': '@*. ',
+    'dots': '●◐◑◒◓◔◕○ '
+  };
+
+  constructor(charsetPreset = 'standard') {
+    this.setCharsetPreset(charsetPreset);
     this.sensitivityFactor = 1.0;
   }
 
   /**
-   * Set the character set for conversion
+   * Set the character set using a preset name
+   * @param {string} preset - The preset name
+   */
+  setCharsetPreset(preset) {
+    if (preset in AsciiConverter.CHARSET_PRESETS) {
+      this.charset = AsciiConverter.CHARSET_PRESETS[preset];
+      this.currentPreset = preset;
+    } else {
+      const available = Object.keys(AsciiConverter.CHARSET_PRESETS).join(', ');
+      throw new Error(`Unknown charset preset '${preset}'. Available presets: ${available}`);
+    }
+  }
+
+  /**
+   * Set the character set for conversion (direct)
    * @param {string} charset - The character set to use
    */
   setCharset(charset) {
     this.charset = charset;
+    this.currentPreset = null; // Clear preset when setting direct charset
+  }
+
+  /**
+   * Get the current charset preset name
+   * @returns {string|null} Current preset name or null if using direct charset
+   */
+  getCurrentPreset() {
+    return this.currentPreset;
+  }
+
+  /**
+   * Get all available charset presets
+   * @returns {Object} Object with preset names as keys and charsets as values
+   */
+  static getAvailablePresets() {
+    return { ...AsciiConverter.CHARSET_PRESETS };
   }
 
   /**

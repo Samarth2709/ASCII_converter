@@ -15,8 +15,8 @@ def demo_image_conversion():
         ascii_art = ascii_convert(
             input_path="../src/assets/images/test.jpg",
             detail_level=0.8,
-            max_width=60,
-            max_height=30
+            charset_preset='standard',
+            output_format='text'
         )
         print(ascii_art[:500] + "...\n")  # Show first 500 characters
     except Exception as e:
@@ -28,38 +28,50 @@ def demo_image_conversion():
         ascii_art = ascii_convert(
             input_path="../src/assets/images/test.jpg",
             detail_level=2.0,
-            max_width=80,
-            max_height=40
+            charset_preset='standard',
+            output_format='text',
+            output_path="high_detail_demo.txt"
         )
         print("Generated high-detail ASCII art (saved to file)\n")
-        with open("high_detail_demo.txt", "w") as f:
-            f.write(ascii_art)
     except Exception as e:
         print(f"Error: {e}\n")
     
-    # Custom character set
-    print("3. Custom character set (Unicode blocks):")
+    # Block character set
+    print("3. Block character set:")
     try:
         ascii_art = ascii_convert(
             input_path="../src/assets/images/test.jpg",
             detail_level=1.0,
-            charset="█▉▊▋▌▍▎▏ ",
-            max_width=50,
-            max_height=25
+            charset_preset='block',
+            output_format='text'
         )
         print(ascii_art[:400] + "...\n")
     except Exception as e:
         print(f"Error: {e}\n")
     
-    # Different sensitivity
-    print("4. High sensitivity conversion:")
+    # Image output format
+    print("4. Image output format:")
+    try:
+        result_path = ascii_convert(
+            input_path="../src/assets/images/test.jpg",
+            detail_level=1.0,
+            charset_preset='detailed',
+            output_format='image',
+            output_path="demo_ascii_image.png"
+        )
+        print(f"ASCII image created: {result_path}\n")
+    except Exception as e:
+        print(f"Error: {e}\n")
+    
+    # High sensitivity conversion
+    print("5. High sensitivity conversion:")
     try:
         ascii_art = ascii_convert(
             input_path="../src/assets/images/test.jpg",
             detail_level=1.0,
-            sensitivity=2.0,
-            max_width=50,
-            max_height=25
+            charset_preset='minimal',
+            output_format='text',
+            sensitivity=2.0
         )
         print(ascii_art[:400] + "...\n")
     except Exception as e:
@@ -78,14 +90,20 @@ ascii_art = ascii_convert("image.jpg")
 ascii_art = ascii_convert(
     "image.jpg", 
     detail_level=3.0,
-    max_width=200,
-    max_height=100
+    charset_preset='detailed'
 )
 
-# Custom character set
+# Block character set
 ascii_art = ascii_convert(
     "image.jpg",
-    charset="@#*+=-:. "
+    charset_preset="block"
+)
+
+# Create ASCII image
+image_path = ascii_convert(
+    "image.jpg",
+    output_format="image",
+    output_path="ascii_art.png"
 )
 
 # Video conversion
@@ -101,6 +119,9 @@ ascii_art = ascii_convert(
     "image.jpg",
     output_path="output.txt"
 )
+
+# Available charset presets:
+# 'standard', 'block', 'simple', 'detailed', 'minimal', 'dots'
 """)
 
 if __name__ == "__main__":

@@ -17,18 +17,36 @@ class ASCIIConverter:
     A class to convert images and videos to ASCII art.
     """
     
-    def __init__(self, charset: str = '@%#*+=-:. '):
+    # Predefined character sets
+    CHARSET_PRESETS = {
+        'standard': '@%#*+=-:. ',
+        'block': '█▉▊▋▌▍▎▏ ',
+        'simple': '##++--.. ',
+        'detailed': '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,"^`\'. ',
+        'minimal': '@*. ',
+        'dots': '●◐◑◒◓◔◕○ '
+    }
+    
+    def __init__(self, charset_preset: str = 'standard'):
         """
         Initialize the ASCII converter.
         
         Args:
-            charset (str): Character set for ASCII conversion, ordered from darkest to lightest
+            charset_preset (str): Preset name for character set
         """
-        self.charset = charset
+        self.set_charset_preset(charset_preset)
         self.sensitivity_factor = 1.0
     
+    def set_charset_preset(self, preset: str) -> None:
+        """Set the character set using a preset name."""
+        if preset in self.CHARSET_PRESETS:
+            self.charset = self.CHARSET_PRESETS[preset]
+        else:
+            available = ', '.join(self.CHARSET_PRESETS.keys())
+            raise ValueError(f"Unknown charset preset '{preset}'. Available presets: {available}")
+    
     def set_charset(self, charset: str) -> None:
-        """Set the character set for conversion."""
+        """Set the character set for conversion (direct)."""
         self.charset = charset
     
     def set_sensitivity(self, factor: float) -> None:
@@ -111,9 +129,7 @@ class ASCIIConverter:
 def calculate_optimal_dimensions(
     image_width: int, 
     image_height: int, 
-    detail_level: float = 1.0,
-    max_width: int = 120,
-    max_height: int = 60
+    detail_level: float = 1.0
 ) -> Tuple[int, int]:
     """
     Calculate optimal ASCII dimensions based on image aspect ratio and detail level.
@@ -122,17 +138,15 @@ def calculate_optimal_dimensions(
         image_width: Original image width
         image_height: Original image height
         detail_level: Detail factor (higher = more characters)
-        max_width: Maximum ASCII width
-        max_height: Maximum ASCII height
         
     Returns:
         Tuple[int, int]: (cols, rows) for ASCII output
     """
     aspect_ratio = image_width / image_height
     
-    # Scale dimensions based on detail level
-    base_cols = int(max_width * detail_level)
-    base_rows = int(max_height * detail_level)
+    # Base dimensions for standard output
+    base_cols = int(120 * detail_level)
+    base_rows = int(60 * detail_level)
     
     # Maintain aspect ratio
     if base_cols / aspect_ratio <= base_rows:
@@ -152,10 +166,9 @@ def calculate_optimal_dimensions(
 def ascii_convert(
     input_path: str,
     detail_level: float = 1.0,
-    charset: str = '@%#*+=-:. ',
+    charset_preset: str = 'standard',
+    output_format: str = 'text',
     output_path: Optional[str] = None,
-    max_width: int = 120,
-    max_height: int = 60,
     sensitivity: float = 1.0,
     frame_rate: float = 10.0
 ) -> Union[str, List[str]]:
@@ -165,10 +178,9 @@ def ascii_convert(
     Args:
         input_path (str): Path to input image or video file
         detail_level (float): Level of detail (0.1 to 5.0, higher = more detail)
-        charset (str): Character set for ASCII conversion
+        charset_preset (str): Character set preset ('standard', 'block', 'simple', 'detailed', 'minimal', 'dots')
+        output_format (str): Output format ('text' or 'image')
         output_path (Optional[str]): Path to save output (optional)
-        max_width (int): Maximum width for ASCII output
-        max_height (int): Maximum height for ASCII output
         sensitivity (float): Sensitivity factor for luminance adjustment
         frame_rate (float): Frame rate for video processing (frames per second)
         
@@ -182,8 +194,12 @@ def ascii_convert(
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
     
+    # Validate output format
+    if output_format not in ['text', 'image']:
+        raise ValueError(f"Invalid output format '{output_format}'. Must be 'text' or 'image'.")
+    
     # Initialize converter
-    converter = ASCIIConverter(charset)
+    converter = ASCIIConverter(charset_preset)
     converter.set_sensitivity(sensitivity)
     
     # Check if input is image or video
@@ -193,12 +209,11 @@ def ascii_convert(
     
     if file_extension in image_extensions:
         return _convert_image(
-            input_path, converter, detail_level, max_width, max_height, output_path
+            input_path, converter, detail_level, output_format, output_path
         )
     elif file_extension in video_extensions:
         return _convert_video(
-            input_path, converter, detail_level, max_width, max_height, 
-            output_path, frame_rate
+            input_path, converter, detail_level, output_format, output_path, frame_rate
         )
     else:
         raise ValueError(f"Unsupported file format: {file_extension}")
@@ -208,8 +223,7 @@ def _convert_image(
     input_path: str,
     converter: ASCIIConverter,
     detail_level: float,
-    max_width: int,
-    max_height: int,
+    output_format: str,
     output_path: Optional[str]
 ) -> str:
     """Convert a single image to ASCII art."""
@@ -219,28 +233,29 @@ def _convert_image(
         raise ValueError(f"Could not load image: {input_path}")
     
     height, width = image.shape[:2]
-    cols, rows = calculate_optimal_dimensions(
-        width, height, detail_level, max_width, max_height
-    )
+    cols, rows = calculate_optimal_dimensions(width, height, detail_level)
     
     # Convert to ASCII
     ascii_art = converter.image_to_ascii(image, cols, rows)
     
-    # Save output if path provided
-    if output_path:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(ascii_art)
-        print(f"ASCII art saved to: {output_path}")
-    
-    return ascii_art
+    # Handle output format
+    if output_format == 'image':
+        return _create_ascii_image(ascii_art, output_path)
+    else:  # text format
+        # Save output if path provided
+        if output_path:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(ascii_art)
+            print(f"ASCII art saved to: {output_path}")
+        
+        return ascii_art
 
 
 def _convert_video(
     input_path: str,
     converter: ASCIIConverter,
     detail_level: float,
-    max_width: int,
-    max_height: int,
+    output_format: str,
     output_path: Optional[str],
     frame_rate: float
 ) -> List[str]:
@@ -256,9 +271,7 @@ def _convert_video(
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     # Calculate dimensions
-    cols, rows = calculate_optimal_dimensions(
-        width, height, detail_level, max_width, max_height
-    )
+    cols, rows = calculate_optimal_dimensions(width, height, detail_level)
     
     # Calculate frame skip based on desired frame rate
     frame_skip = max(1, int(fps / frame_rate))
@@ -312,19 +325,79 @@ def _convert_video(
     return ascii_frames
 
 
+def _create_ascii_image(ascii_text: str, output_path: Optional[str] = None) -> str:
+    """
+    Create an image from ASCII text.
+    
+    Args:
+        ascii_text (str): The ASCII art text
+        output_path (Optional[str]): Path to save the image
+        
+    Returns:
+        str: Path to the created image or the ASCII text if no path provided
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    import io
+    
+    lines = ascii_text.strip().split('\n')
+    if not lines:
+        return ascii_text
+    
+    # Use a monospace font
+    try:
+        # Try to use a system monospace font
+        font_size = 10
+        font = ImageFont.truetype("/System/Library/Fonts/Monaco.ttf", font_size)
+    except:
+        try:
+            font = ImageFont.truetype("Courier New", font_size)
+        except:
+            font = ImageFont.load_default()
+    
+    # Calculate image dimensions
+    max_width = max(len(line) for line in lines) if lines else 1
+    char_width = font.getbbox('M')[2] - font.getbbox('M')[0]  # Width of 'M'
+    char_height = font.getbbox('M')[3] - font.getbbox('M')[1]  # Height of 'M'
+    
+    img_width = max_width * char_width + 20  # Add padding
+    img_height = len(lines) * char_height + 20  # Add padding
+    
+    # Create image
+    img = Image.new('RGB', (img_width, img_height), color='white')
+    draw = ImageDraw.Draw(img)
+    
+    # Draw text
+    y = 10
+    for line in lines:
+        draw.text((10, y), line, fill='black', font=font)
+        y += char_height
+    
+    # Save or return
+    if output_path:
+        if not output_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            output_path += '.png'
+        img.save(output_path)
+        print(f"ASCII image saved to: {output_path}")
+        return output_path
+    else:
+        # Save to temporary location and return path
+        temp_path = "ascii_output.png"
+        img.save(temp_path)
+        print(f"ASCII image created: {temp_path}")
+        return temp_path
+
+
 def main():
     """Command line interface for ASCII converter."""
     parser = argparse.ArgumentParser(description='Convert images and videos to ASCII art')
     parser.add_argument('input', help='Input image or video file path')
     parser.add_argument('-d', '--detail', type=float, default=1.0,
                        help='Detail level (0.1-5.0, default: 1.0)')
-    parser.add_argument('-c', '--charset', default='@%#*+=-:. ',
-                       help='Character set for ASCII conversion')
+    parser.add_argument('-c', '--charset', default='standard',
+                       help='Character set preset (standard, block, simple, detailed, minimal, dots)')
     parser.add_argument('-o', '--output', help='Output file path')
-    parser.add_argument('-w', '--width', type=int, default=120,
-                       help='Maximum ASCII width (default: 120)')
-    parser.add_argument('--height', type=int, default=60,
-                       help='Maximum ASCII height (default: 60)')
+    parser.add_argument('--format', choices=['text', 'image'], default='text',
+                       help='Output format: text or image (default: text)')
     parser.add_argument('-s', '--sensitivity', type=float, default=1.0,
                        help='Sensitivity factor (default: 1.0)')
     parser.add_argument('-f', '--framerate', type=float, default=10.0,
@@ -336,10 +409,9 @@ def main():
         result = ascii_convert(
             input_path=args.input,
             detail_level=args.detail,
-            charset=args.charset,
+            charset_preset=args.charset,
+            output_format=args.format,
             output_path=args.output,
-            max_width=args.width,
-            max_height=args.height,
             sensitivity=args.sensitivity,
             frame_rate=args.framerate
         )
